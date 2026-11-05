@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Business Quest: Around the World</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#1d2433;font-family:'Press Start 2P',monospace;padding:10px}
+#console{width:min(100%,520px);background:#d9d3c1;border-radius:16px 16px 70px 16px;padding:16px 16px 22px;border-bottom:8px solid #a8a18b;box-shadow:0 10px 30px #0008}
+#scr{position:relative;aspect-ratio:11/8;border:8px solid #3b3f58;border-radius:8px;background:#000;overflow:hidden}
+canvas{width:100%;height:100%;display:block}
+#ov,#fm{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:10px;background:#1b2a41;color:#f4eed4;font-size:clamp(6px,1.8vw,9px);line-height:1.9;overflow:auto}
+#ov>*{max-width:100%}
+#fm{z-index:5;gap:6px;background:#2a3b57}
+#fm label{display:block;width:90%;text-align:left;font-size:clamp(6px,1.7vw,8px)}
+#fm input{display:block;width:100%;margin-top:3px;padding:6px;font:16px monospace;border:3px solid #111;background:#fffbe8}
+#fs{font:inherit;padding:8px 14px;background:#e63946;color:#fff;border:3px solid #111;cursor:pointer}
+#dlg{position:absolute;left:6px;right:6px;bottom:6px;display:none;background:#fffbe8;color:#222;border:4px solid #222;border-radius:6px;box-shadow:0 0 0 3px #fffbe8,0 0 0 6px #222;padding:9px 11px;font-size:clamp(6px,1.8vw,9px);line-height:1.8;max-height:62%;overflow:auto}
+#dlg b{color:#1d4e89}.o.on{color:#c1121f}.nx{float:right;animation:bl .8s steps(2) infinite}
+@keyframes bl{50%{opacity:0}}
+h1{font-size:clamp(14px,4.4vw,22px);margin:4px 0;color:#ffd166;text-shadow:3px 3px #e63946}
+.mi{padding:5px}.mi.on{color:#ffd166}
+.av{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin:8px 0}
+.av span{font-size:clamp(20px,6vw,30px);padding:4px;border:3px solid transparent}.av span.on{border-color:#ffd166;background:#ffffff22}
+.tv{font-size:50px;animation:fly 3s linear forwards}
+@keyframes fly{from{transform:translateX(-170px)}to{transform:translateX(170px)}}
+table{border-collapse:collapse;width:100%;font-size:inherit}td{padding:3px 4px;text-align:left}tr.me{color:#ffd166}
+#ctl{display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding:0 6px}
+.pad{display:grid;grid-template:repeat(3,52px)/repeat(3,52px);grid-template-areas:". u ." "l . r" ". d .";gap:2px}
+.pad button,#okb{border:0;background:#2b2d42;color:#eee;font-size:20px;cursor:pointer;border-radius:8px;box-shadow:0 4px #111;touch-action:manipulation;user-select:none}
+.pad button:active,#okb:active{transform:translateY(3px);box-shadow:0 1px #111}
+.pad [data-k=U]{grid-area:u}.pad [data-k=L]{grid-area:l}.pad [data-k=R]{grid-area:r}.pad [data-k=D]{grid-area:d}
+#okb{width:84px;height:84px;border-radius:50%;background:#c1121f;font:16px 'Press Start 2P',monospace;transform:rotate(-20deg)}
+#okb:active{transform:rotate(-20deg) translateY(3px)}
+</style>
+</head>
+<body>
+<div id="console">
+  <div id="scr">
+    <canvas id="cv" width="440" height="320"></canvas>
+    <div id="ov"></div><div id="dlg"></div>
+    <div id="fm"><div>🎓 ATTENDANCE DESK</div><div id="ft"></div>
+      <label>GAME NAME<input id="f1" maxlength="14" autocomplete="off"></label>
+      <label>FORMAL NAME<input id="f2" maxlength="40" autocomplete="off"></label>
+      <label>ID NO.<input id="f3" maxlength="20" autocomplete="off"></label>
+      <button id="fs">SUBMIT</button></div>
+  </div>
+  <div id="ctl">
+    <div class="pad"><button data-k="U" aria-label="Up">▲</button><button data-k="L" aria-label="Left">◀</button><button data-k="R" aria-label="Right">▶</button><button data-k="D" aria-label="Down">▼</button></div>
+    <button id="okb" data-k="OK">OK</button>
+  </div>
+</div>
+<script>
+/* ===== SETTINGS ===== */
+// Password is stored only as a SHA-256 hash. Paste your Google Apps Script web-app URL below
+// to share one leaderboard/attendance list across ALL students (see README). Empty = this browser only.
+const SYNC_URL='';
+const HASH='72822b7d3abec8ae13263b42683aaed919969a656c90032442d0732898abb338';
+const KEY='bq_records_v1';
+
+/* ===== DATA ===== */
+const AV=[['🦊','Foxy'],['🐼','Panda'],['🤖','Robo'],['👽','Alien'],['🥷','Ninja'],['🧙','Wizard'],['🦖','Dino'],['🐙','Octo']];
+const PR=['Correct! You are basically a CEO now.','Yes! Your future yacht is loading...','Bingo! Even my cat clapped.','Right! Somebody did the reading!'];
+const N=(e,n,i,q,o,w)=>({e,n,i,q,o,w});
+const R=[
+{n:'BANGLADESH',t:'🛶',c:['#6dbf67','#62b35d'],d:['🌴','🌾','🛖','🐄'],h:'Welcome to Bangladesh! Rivers, rickshaws and tea so good it needs its own trade agreement.',
+ tr:['🚌','BUS','Dhaka to Kolkata',`The driver says "only 5 more minutes". He said that 3 hours ago.`],
+ p:[N('👨‍🏭','Mr. Rahim','Salaam! My factory makes shirts. Your outfit? Let us not discuss it.',`What is Bangladesh's biggest export?`,['Ready-made garments','Hilsa-flavoured ice cream','Imaginary friends'],['Wrong! My sewing machine just laughed at you.','Nope! Nobody pays dollars for imaginary friends... yet.']),
+    N('🧕','Auntie Rupa','Dear, I sell goods abroad and eat snacks at home. Business is good!','Selling goods to another country is called...?',['Exporting','Importing','Exploring snacks'],['Close, but no snack for you. Try again!','Opposite, dear! Goods go OUT, not IN.'])]},
+{n:'INDIA',t:'🐘',c:['#e9b872','#dfaa63'],d:['🌵','🛺','🕌','🌶️'],h:'Namaste! Where the traffic is chaos, the food is fire and the call centres never sleep.',
+ tr:['✈️','PLANE','Delhi to Frankfurt','Fasten your seatbelt. Peanuts cost extra. Honestly, everything costs extra.'],
+ p:[N('🧑‍💻','Raj','Namaste! My call centre helps customers worldwide. Have you tried turning it off and on again?','A company hires another company abroad to do a job (like customer support). This is called...?',['Outsourcing','Outsleeping','Overcooking'],['Wrong! Even my chai knows this one.','Nope! That is not a business term, that is a Sunday.']),
+    N('👩‍💼','Mrs. Sharma','I import goods and the government wants a cut. Rude!','A tax on imported goods is called a...?',['Tariff','Parking ticket','Wedding gift'],['Tax on imports, not on weddings! (Though weddings are expensive too.)','Wrong! Customs officers are not that cheerful.'])]},
+{n:'GERMANY',t:'🍺',c:['#7fbf7b','#74b270'],d:['🌲','🏰','🥨','🚗'],h:'Willkommen! Everything here runs on time, including the beer.',
+ tr:['🚆','TRAIN','Berlin to Paris','The train is exactly on time. This is Germany, what did you expect?'],
+ p:[N('🧔','Herr Klaus','Guten Tag! Be punctual. My watch is already angry.','Business meeting at 9:00 in Germany. When should you arrive?',['A few minutes before 9:00','9:30, fashionably late','Tomorrow, with donuts'],['In Germany, being late is almost a crime.','Nein! My watch has filed a complaint.']),
+    N('👩‍🔧','Fraulein Anna','I engineer cars and cuckoo-clock jokes.','Which currency does Germany use?',['Euro','Monopoly money','Bavarian pretzels'],['Nein! Pretzels are not legal tender (sadly).','Wrong! The ATM does not accept board games.'])]},
+{n:'FRANCE',t:'🗼',c:['#a9d6e5','#9bcbdb'],d:['🥐','🍷','🎨','🌸'],h:'Bonjour! Fashion, cheese and strikes, in that order.',
+ tr:['🚢','SHIP','Le Havre to New York','Please do not argue with the iceberg. It always wins.'],
+ p:[N('🧑‍🎨','Monsieur Pierre','Bonjour! I sell perfume. It costs more than your lunch. And your dinner.','Which global organisation sets the rules for trade between countries?',['WTO','WWE','WIFI'],['Non! Wrestling has fewer rules than trade, but still no.','Non! Wi-Fi connects people, not tariffs.']),
+    N('👩‍🍳','Madame Claire','My cafe sells croissants in 12 countries. Currency charts give me headaches.','An exchange rate tells you...?',['How much one currency costs in another','Today\'s weather inside the bank','Your lucky number'],['Non non non! Currency, not horoscope!','Wrong! Bank weather is always cold.'])]},
+{n:'USA',t:'🗽',c:['#c9c9d6','#bdbdcc'],d:['🌆','🌭','🏈','🚕'],h:'Welcome to the USA! Everything is bigger here, including the coffee and the debt.',
+ tr:['✈️','PLANE','New York to your class','The pilot is on Zoom. Please unmute yourself.'],
+ p:[N('🤠','Cowboy Bob','Howdy partner! I just built a factory in Mexico. Biggest barn ever!','A company investing in a factory or business abroad is doing...?',['Foreign Direct Investment (FDI)','Free Donut Inspection','Fancy Dress Idea'],['Yeehaw, wrong! That is not a thing. Yet.','Wrong, partner! Even my horse knows this one.']),
+    N('🧑‍⚖️','Ms. Numbers','I count trade statistics all day. I am a very fun party guest.','A country importing MORE than it exports has a trade...?',['Deficit','Dessert','Disco'],['Dessert is sweet. This is NOT.','Wrong! No disco in economics. Lots of tears though.'])]},
+{n:'CLASSROOM',t:'🎓',c:['#c8a26b','#bd9760'],d:['🪑','📚','🪴','📐'],h:'You made it to class! The final boss is the attendance sheet.',
+ p:[N('👩‍🏫','Professor','Congratulations, globetrotter! Time to register your attendance. No excuses, no jet lag.')]}
+];
+
+/* ===== STATE & HELPERS ===== */
+const W=11,H=8,T=40,ST={x:9,y:2},NPOS=[[[4,2],[6,5]],[[5,3]]];
+const $=s=>document.querySelector(s),cv=$('#cv'),c=cv.getContext('2d'),O=$('#ov'),D=$('#dlg'),F=$('#fm');
+let G={scr:'title',sel:0};
+const E=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const fmt=ms=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+const shuf=a=>a.sort(()=>Math.random()-.5);
+const ov=h=>{O.innerHTML=h;O.style.display=h?'flex':'none'};
+const dlg=h=>{D.innerHTML=h;D.style.display=h?'block':'none'};
+const menu=(a,s)=>a.map((t,i)=>`<div class="mi ${i==s?'on':''}">${i==s?'▶ ':'&nbsp;&nbsp;'}${t}</div>`).join('');
+async function sha(s){if(!window.crypto||!crypto.subtle)return'';const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+const loc=()=>{try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]}};
+const saveLoc=a=>{try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}};
+async function getRecs(){if(SYNC_URL){try{const r=await fetch(SYNC_URL);const j=await r.json();if(Array.isArray(j))return j}catch(e){}}return loc()}
+const post=o=>{if(SYNC_URL)fetch(SYNC_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(o)}).catch(()=>{})};
+
+/* ===== SCREENS ===== */
+function title(){G.scr='title';dlg('');F.style.display='none';ov(`<h1>BUSINESS QUEST</h1><div>Around the World in 5 Countries</div><div style="font-size:30px;margin:10px">🚌 ✈️ 🚆 🚢</div>${menu(['START GAME','LEADERBOARD','TEACHER ZONE'],G.sel)}`)}
+function guide(){G.scr='guide';ov(`<h1>HOW TO PLAY</h1><div style="text-align:left;max-width:380px">▲▼◀▶ walk around.<br>Locals will run up to you and quiz you on international business.<br>Wrong answer? They ask AGAIN, with sass.<br>Answer everyone to unlock the 🔒 station and travel by bus, plane, train or ship.<br>Reach the classroom, enter your details and get your attendance.<br>Faster + fewer mistakes = glory.</div><div style="margin-top:10px" class="nx">PRESS OK ▶</div>`)}
+function pick(){G.scr='av';G.av=G.av||0;avs()}
+function avs(){ov(`<h1>CHOOSE HERO</h1><div class="av">${AV.map((a,i)=>`<span class="${i==G.av?'on':''}">${a[0]}</span>`).join('')}</div><div>${AV[G.av][1]}</div><div style="margin-top:8px">◀ ▶ then OK</div>`)}
+async function lb(){G.scr='lb';ov('LOADING...');const a=(await getRecs()).sort((x,y)=>x.ms-y.ms||x.miss-y.miss).slice(0,10);
+ ov(`<h1>LEADERBOARD</h1>${a.length?`<table>${a.map((r,i)=>`<tr class="${r.date===G.me?'me':''}"><td>${i+1}</td><td>${E(r.av||'')} ${E(r.game)}</td><td>${fmt(r.ms)}</td><td>✖${+r.miss||0}</td></tr>`).join('')}</table>`:'<p>No heroes yet. Be the first!</p>'}<div class="nx" style="margin-top:8px">OK = BACK</div>`)}
+function adm(){G.scr='adm';ov(`<h1>TEACHER ZONE</h1>${menu(['DOWNLOAD ATTENDANCE CSV','RESET LEADERBOARD','BACK'],G.sel)}`)}
+
+/* ===== GAME ===== */
+function startGame(){G.miss=0;G.t0=Date.now();G.tEnd=0;G.me=null;loadRoom(0)}
+function loadRoom(i){const r=R[i];G.room=i;G.px=1;G.py=6;G.busy=false;
+ G.np=r.p.map((p,k)=>({...p,x:NPOS[i==5?1:0][k][0],y:NPOS[i==5?1:0][k][1],done:false}));
+ let s=i*9301+49297;const rnd=()=>(s=(s*9301+49297)%233280)/233280,far=(x,y,a,b)=>Math.abs(x-a)+Math.abs(y-b)>1;
+ G.ob=[[9,5,r.t]];
+ while(G.ob.length<10){const x=Math.floor(rnd()*W),y=1+Math.floor(rnd()*(H-1));
+  if(!far(x,y,1,6)||!far(x,y,ST.x,ST.y)||G.np.some(n=>!far(x,y,n.x,n.y))||G.ob.some(o=>o[0]==x&&o[1]==y))continue;G.ob.push([x,y,r.d[Math.floor(rnd()*r.d.length)]])}
+ G.bl=new Set(G.ob.map(o=>o[0]+','+o[1]));ov('');F.style.display='none';draw();
+ G.dl={ph:'n',m:r.h};G.scr='dlg';showDl()}
+const em=(e,x,y,s=30)=>{c.font=s+'px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(e,x*T+T/2,y*T+T/2+2)};
+function draw(){const r=R[G.room];c.clearRect(0,0,440,320);
+ for(let y=1;y<H;y++)for(let x=0;x<W;x++){c.fillStyle=r.c[(x+y)%2];c.fillRect(x*T,y*T,T,T)}
+ if(r.tr){c.fillStyle='#555';c.fillRect(ST.x*T,ST.y*T,T,T);em(r.tr[0],ST.x,ST.y);if(!G.np.every(n=>n.done))em('🔒',ST.x,ST.y,14)}
+ G.ob.forEach(o=>em(o[2],o[0],o[1]));
+ G.np.forEach(n=>{em(n.e,n.x,n.y);if(n.done)em('✅',n.x,n.y,12)});
+ em(AV[G.av||0][0],G.px,G.py,32);
+ c.fillStyle='#2b2d42';c.fillRect(0,0,440,T);c.fillStyle='#ffd166';c.font='11px "Press Start 2P",monospace';c.textAlign='left';c.textBaseline='middle';
+ c.fillText(r.t+' '+r.n,8,21);c.textAlign='right';c.fillText('⏱ '+fmt((G.tEnd||Date.now())-G.t0),432,21)}
+function showDl(){const d=G.dl,n=d.n;let h='';
+ if(d.ph=='n')h=d.m;
+ else if(d.ph=='i')h=`<b>${n.n}:</b> ${n.i}`;
+ else if(d.ph=='q')h=`<b>${n.n}:</b> ${n.q}`+d.o.map((k,i)=>`<div class="o ${i==d.s?'on':''}">${i==d.s?'▶':'&nbsp;'} ${n.o[k]}</div>`).join('');
+ else if(d.ph=='w')h=`<b>${n.n}:</b> ${n.w[(n.wc-1)%n.w.length]}`;
+ else h=`<b>${n.n}:</b> ${d.m}`;
+ dlg(h+(d.ph=='q'?'':'<span class="nx">▼</span>'))}
+function close(){dlg('');G.scr='play';draw()}
+function ask2(d){d.ph='q';d.o=shuf([0,1,2]);d.s=0;showDl()}
+function approach(n){G.busy=true;const iv=setInterval(()=>{const dx=G.px-n.x,dy=G.py-n.y;
+ if(Math.abs(dx)+Math.abs(dy)<=1){clearInterval(iv);G.busy=false;G.dl={ph:'i',n};G.scr='dlg';showDl();return}
+ if(Math.abs(dx)>=Math.abs(dy))n.x+=Math.sign(dx);else n.y+=Math.sign(dy);draw()},170)}
+function mv(k){if(G.busy)return;const r=R[G.room],nx=G.px+({L:-1,R:1}[k]||0),ny=G.py+({U:-1,D:1}[k]||0);
+ if(nx<0||nx>=W||ny<1||ny>=H||G.bl.has(nx+','+ny)||G.np.some(n=>n.x==nx&&n.y==ny))return;
+ if(r.tr&&nx==ST.x&&ny==ST.y){if(G.np.every(n=>n.done))return travel();G.dl={ph:'n',m:'🧑‍✈️ <b>Station master:</b> Gate locked! Chat with everyone first. Yes, they WILL quiz you.'};G.scr='dlg';return showDl()}
+ G.px=nx;G.py=ny;draw();const n=G.np.find(n=>!n.done&&Math.abs(n.x-nx)+Math.abs(n.y-ny)<=3);if(n)approach(n)}
+function travel(){const t=R[G.room].tr;G.scr='trv';dlg('');ov(`<div class="tv">${t[0]}</div><p>BOARDING THE ${t[1]}<br>${t[2]}</p><p>${t[3]}</p>`);setTimeout(()=>loadRoom(G.room+1),3400)}
+function openForm(){G.tEnd=Date.now();dlg('');G.scr='form';$('#ft').textContent='Your time '+fmt(G.tEnd-G.t0)+'  Mistakes '+G.miss;['#f1','#f2','#f3'].forEach(s=>$(s).value='');F.style.display='flex'}
+$('#fs').onclick=()=>{const g=$('#f1').value.trim(),n=$('#f2').value.trim(),i=$('#f3').value.trim();
+ if(!g||!n||!i)return alert('Fill in all three boxes, hero!');
+ const rec={date:new Date().toISOString(),game:g,name:n,sid:i,ms:G.tEnd-G.t0,miss:G.miss,av:AV[G.av][0]};
+ const a=loc();a.push(rec);saveLoc(a);post(rec);G.me=rec.date;F.style.display='none';lb()};
+
+/* ===== INPUT ===== */
+async function press(k){const s=G.scr,d=G.dl;
+ if(s=='title'){if(k=='U'||k=='D'){G.sel=(G.sel+(k=='D'?1:2))%3;title()}else if(k=='OK'){const f=G.sel;if(f==0)guide();else if(f==1)lb();else{G.sel=0;adm()}}}
+ else if(s=='guide'){if(k=='OK')pick()}
+ else if(s=='av'){if(k=='L'||k=='R'){G.av=(G.av+(k=='R'?1:7))%8;avs()}else if(k=='OK')startGame()}
+ else if(s=='lb'){if(k=='OK'){G.sel=0;title()}}
+ else if(s=='adm'){if(k=='U'||k=='D'){G.sel=(G.sel+(k=='D'?1:2))%3;adm()}else if(k=='OK'){
+  if(G.sel==2){G.sel=0;return title()}
+  const p=prompt('Teacher password:');if(p===null)return;if((await sha(p))!==HASH)return alert('Wrong password. Nice try, student! 😏');
+  if(G.sel==0)csv();else if(confirm('Delete ALL leaderboard and attendance records?')){saveLoc([]);post({action:'reset',pw:p});alert('Leaderboard reset.')}}}
+ else if(s=='play'){if('UDLR'.includes(k)&&k!='OK')mv(k)}
+ else if(s=='dlg'){if(k!='OK'&&d.ph!='q')return;
+  if(d.ph=='n'){close()}
+  else if(d.ph=='i'){if(d.n.form)openForm();else ask2(d)}
+  else if(d.ph=='q'){if(k=='U'||k=='D'){d.s=(d.s+(k=='D'?1:2))%3;showDl()}else if(k=='OK'){
+   if(d.o[d.s]==0){d.n.done=true;d.ph='r';d.m=PR[Math.floor(Math.random()*PR.length)]+(G.np.every(n=>n.done)?' <b>STATION UNLOCKED!</b> Head to the '+R[G.room].tr[0]:'');draw()}
+   else{G.miss++;d.n.wc=(d.n.wc||0)+1;d.ph='w'}showDl()}}
+  else if(d.ph=='w')ask2(d);
+  else close()}}
+async function csv(){const a=(await getRecs()).sort((x,y)=>new Date(x.date)-new Date(y.date));
+ const q=v=>{v=String(v??'');if(/^[=+\-@]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"'};
+ const rows=[['Date','Game Name','Formal Name','ID','Time (mm:ss)','Mistakes','Avatar','Attendance']].concat(a.map(r=>[r.date,r.game,r.name,r.sid,fmt(r.ms),r.miss,r.av,'Present']));
+ const b=new Blob(['\uFEFF'+rows.map(r=>r.map(q).join(',')).join('\r\n')],{type:'text/csv'}),l=document.createElement('a');
+ l.href=URL.createObjectURL(b);l.download='attendance_'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(l);l.click();l.remove()}
+let hold;
+document.querySelectorAll('[data-k]').forEach(b=>{const k=b.dataset.k,stop=()=>clearInterval(hold);
+ b.addEventListener('pointerdown',e=>{e.preventDefault();press(k);if('UDLR'.includes(k)&&k!='OK'){stop();hold=setInterval(()=>press(k),160)}});
+ ['pointerup','pointerleave','pointercancel'].forEach(t=>b.addEventListener(t,stop))});
+document.addEventListener('keydown',e=>{if(G.scr=='form')return;const m={ArrowUp:'U',ArrowDown:'D',ArrowLeft:'L',ArrowRight:'R',Enter:'OK',' ':'OK'}[e.key];if(m){e.preventDefault();press(m)}});
+setInterval(()=>{if(G.scr=='play'||G.scr=='dlg')draw()},500);
+title();
+</script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Office Quest – OB Adventure</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--bg:#1b1b2f;--fg:#f4f4f4;--sh:#c0392b;--pnl:#2b2b45;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1b1b2f}}
+:root[data-theme=dark]{--bg:#1b1b2f}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:'Press Start 2P',monospace;display:flex;justify-content:center;align-items:flex-start}
+#gb{width:min(100%,520px);padding:10px;background:var(--sh);border-radius:14px;margin:8px;box-sizing:border-box}
+#scr{position:relative;border:8px solid #333;border-radius:8px;background:#000;overflow:hidden}
+canvas{display:block;width:100%;image-rendering:pixelated}
+#ov{position:absolute;inset:0;background:rgba(15,15,35,.96);display:none;overflow:auto;padding:12px;font-size:9px;line-height:1.6;box-sizing:border-box}
+#ov h2{font-size:12px;color:#ffd54f;margin:0 0 10px;text-align:center}
+#ov input{width:100%;box-sizing:border-box;margin:3px 0 10px;padding:8px;font:inherit;font-size:9px;background:#fff;color:#111;border:3px solid #ffd54f}
+#ov button{font:inherit;font-size:10px;padding:10px;background:#43a047;color:#fff;border:3px solid #fff;width:100%;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:8px}td,th{padding:4px 2px;text-align:left;border-bottom:1px solid #444}
+#pad{display:flex;justify-content:space-between;align-items:center;padding:16px 10px 8px}
+#dp{display:grid;grid-template:repeat(3,48px)/repeat(3,48px);gap:2px}
+#dp button,#ok{background:#222;color:#fff;border:0;font:inherit;font-size:16px;touch-action:none;user-select:none;-webkit-user-select:none}
+#dp button{border-radius:6px}
+#ok{width:84px;height:84px;border-radius:50%;background:#3b3b8f;border:4px solid #111;font-size:14px}
+#dp button:active,#ok:active{background:#555}
+</style></head><body>
+<div id="gb">
+<div id="scr"><canvas id="c" width="320" height="240"></canvas><div id="ov"></div></div>
+<div id="pad">
+<div id="dp"><span></span><button data-k="u">▲</button><span></span><button data-k="l">◀</button><span></span><button data-k="r">▶</button><span></span><button data-k="d">▼</button><span></span></div>
+<button id="ok" data-k="ok">OK</button></div></div>
+<script>
+const C=document.getElementById('c'),g=C.getContext('2d'),OV=document.getElementById('ov');
+const T=16,W=20,H=15,F="8px 'Press Start 2P',monospace";
+const AV=[{n:"CAP'N EXCEL",s:'#e53935',h:'#3b2a1a',a:'cap'},{n:'PIXEL PENNY',s:'#8e24aa',h:'#ff6f91',a:'bow'},{n:'TECHNO TOM',s:'#1e88e5',h:'#222',a:'glasses'},{n:'BOSS BELLA',s:'#f9a825',h:'#6d4c41',a:'crown'}];
+const N=(x,y,c,nm,q,o,e,a)=>({x,y,c,nm,q,o,e,a:a||0,ac:['glasses','bow','cap',''][(x+y)%4],h:['#222','#8d5524','#d7a85b','#a33'][(x*y)%4]});
+const R=[
+{n:'RECEPTION',f:'#d9b88a',f2:'#cfae7e',d:[[2,2,4,2],[13,2,5,2]],p:[[1,1],[18,1],[1,13],[18,13],[7,1],[12,1]],np:[
+N(5,7,'#43a047','INTERN RIA',"Our team keeps missing deadlines because nobody knows who does what. Best fix?",["Clarify roles and tasks","Hold more meetings","Just work overtime"],"Clear roles = fewer missed deadlines!"),
+N(14,8,'#00acc1','CLERK KEN',"Two coworkers disagree on how to do a project. What is the best approach?",["Talk openly, find common ground","Ignore it and hope it ends","Complain to everybody else"],"Open, respectful talk solves conflict!"),
+N(8,11,'#7b1fa2','RECEPTIONIST RITA',"A visitor asks where the CEO's office is. You have no idea. What do you do?",["Politely find out and guide them","Say 'Not my problem!'","Point randomly and run"],"Helpful beats hiding behind the plant!")]},
+{n:'HR DEPARTMENT',f:'#9fc5e8',f2:'#93b9dc',d:[[2,2,3,2],[8,2,3,2],[15,2,3,2]],p:[[1,1],[18,1],[1,13],[18,13],[6,1],[13,1]],np:[
+N(4,6,'#ef6c00','HR HANNAH',"Which thing keeps employees motivated over the long run?",["Recognition, growth and fair pay","Only threats of punishment","Free pizza once a year"],"Recognition and growth keep people engaged!"),
+N(15,6,'#6d4c41','SAM, NEW HIRE',"I am new and feel left out. Nobody even knows my name. What would help most?",["A buddy and a good onboarding","Leave him to figure it out","Call him 'Hey you' forever"],"Onboarding builds belonging!"),
+N(9,10,'#ad1457','COACH CLARA',"What is 'organizational culture'?",["Shared values, beliefs, behaviors","The office color scheme","The CEO's lunch menu"],"Culture is how we do things around here!"),
+N(14,11,'#5d4037','RECRUITER RAJ',"A job candidate arrives 40 minutes late wearing pajamas. What is your first move?",["Ask calmly what happened","Hire him on the spot","Call security immediately"],"Ask first, judge later!")]},
+{n:'BREAK ROOM',f:'#e8d5a3',f2:'#dfca96',d:[[3,4,3,2],[13,4,3,2]],p:[[1,1],[18,1],[1,13],[18,13],[9,1],[11,1]],np:[
+N(5,8,'#d84315','SNACKY SUE',"Someone microwaved fish in the break room. Everyone is crying. What is polite?",["Skip smelly food, be considerate","Heat fish daily, be bold","Spray perfume on everyone"],"Consideration is great workplace manners!"),
+N(15,8,'#6a1b9a','COFFEE CARL',"You took the last cup of coffee and the pot is empty. Good etiquette?",["Brew a fresh pot","Hide the pot in a drawer","Blame the intern"],"Be a team player: refill it!"),
+N(10,6,'#00838f','LUNCH LARRY',"Your labeled lunch vanished from the fridge! Best response?",["Ask politely and label your food","Accuse the whole floor","Eat a random lunch in revenge"],"Calm beats chaos (and sandwich wars)."),
+N(14,11,'#e91e63','GOSSIP GINA',"Psst! Did you hear Bob's big secret? Tell everyone! What do you do?",["Politely avoid spreading gossip","Announce it on the loudspeaker","Post it on the notice board"],"Gossip kills trust in a team!")]},
+{n:'IT DEPARTMENT',f:'#9ad0b0',f2:'#8cc4a4',d:[[2,3,4,2],[8,3,4,2],[14,3,4,2]],p:[[1,1],[18,1],[1,13],[18,13],[7,13],[13,13]],np:[
+N(5,8,'#1565c0','TECH TINA',"Your computer freezes. What should you try before panicking?",["Restart it, then call IT","Hit it with a stapler","Scream for ten minutes"],"Have you tried turning it off and on again?"),
+N(15,8,'#37474f','SECURITY SID',"An email says: 'You won a million dollars! Send your password.' What now?",["Delete it and report as phishing","Send the password quickly","Forward it to the whole office"],"Never share passwords. No free millions!"),
+N(10,11,'#558b2f','CODER CAM',"Your teammate is stuck on a big task and the deadline is near. Best teamwork?",["Offer help and share knowledge","Watch him struggle quietly","Take the credit later"],"Teams win together!")]},
+{n:'SALES FLOOR',f:'#f2b8a0',f2:'#e8ac94',d:[[3,3,3,2],[8,6,4,2],[14,3,3,2]],p:[[1,1],[18,1],[1,13],[18,13],[5,13],[15,13]],np:[
+N(4,9,'#f57f17','SALESMAN SOL',"A customer is furious about a late delivery. What is the first step?",["Listen, apologize, offer a fix","Argue that he is wrong","Pretend the phone is broken"],"Empathy turns angry into loyal customers!"),
+N(15,9,'#c2185b','LOUD LISA',"A coworker takes loud speakerphone calls all day. Best move?",["Kindly ask her to lower it","Sing louder than her","Glue her phone to the desk"],"Direct and kind requests work best."),
+N(10,10,'#283593','MEETING MIKE',"Our meeting has no agenda and lasts three hours. How can we fix it?",["Set an agenda and time limit","Make it five hours","Only bring snacks"],"Short, focused meetings save everybody's sanity!")]},
+{n:'BOARD ROOM',f:'#b8a1d9',f2:'#ad96ce',d:[[6,5,8,3]],p:[[1,1],[18,1],[1,13],[18,13],[4,8],[15,8]],np:[
+N(3,3,'#2e7d32','TEAMLEAD TIA',"In group work, some members slack off and let others do it all. Best fix?",["Give each person clear duties","Let it slide, it's fine","Punish the whole team"],"Individual accountability fights social loafing!"),
+N(16,3,'#455a64','ANALYST ANIL',"What makes communication 'good' in a team?",["Clear, two-way, with feedback","Long emails nobody reads","One-way orders only"],"Feedback makes communication two-way!"),
+N(10,11,'#c62828','CEO CHARLIE',"A leader who asks the team for input before deciding has which style?",["Participative (democratic)","Autocratic","Laissez-faire"],"Participative leaders involve the team! You made it!")]}
+];
+R.forEach(r=>r.np.forEach(n=>{n.ord=[0,1,2].sort(()=>Math.random()-.5)}));
+let uid=null,att=0,attReady=false,bm='',rc=0,note='',sc='title',mi=0,ai=0,ri=0,px=10,py=13,rm,dlg=null,t0=0,tEnd=0,db=null,isOwner=false,rows=[],tick=0;
+function load(i){ri=i;px=10;py=13;rm=JSON.parse(JSON.stringify(R[i]));rm.np.forEach((n,k)=>{n.ord=R[i].np[k].ord;n.done=0;n.act=0});}
+const pend=()=>rm.np.some(n=>!n.done);
+function blocked(x,y){if(x<1||x>=W-1||y<1||y>=H)return true;
+ for(const d of rm.d)if(x>=d[0]&&x<d[0]+d[2]&&y>=d[1]&&y<d[1]+d[3])return true;
+ if(rm.p.some(p=>p[0]==x&&p[1]==y))return true;
+ return rm.np.some(n=>n.x==x&&n.y==y);}
+function spr(x,y,s,h,a,k=1){g.save();g.translate(x,y);g.scale(k,k);
+ const r=(c,a,b,w,hh)=>{g.fillStyle=c;g.fillRect(a,b,w,hh)};
+ r('#333',4,13,3,3);r('#333',9,13,3,3);r(s,3,8,10,5);r('#ffd9b3',1,9,2,3);r('#ffd9b3',13,9,2,3);
+ r('#ffd9b3',4,3,8,5);r(h,4,1,8,3);r(h,3,3,1,3);r(h,12,3,1,3);r('#111',6,5,1,2);r('#111',9,5,1,2);
+ if(a=='cap'){r('#c62828',3,0,10,2);r('#c62828',9,2,6,1)}
+ if(a=='glasses'){r('#111',5,5,3,1);r('#111',8,5,3,1);r('#111',5,7,3,1);r('#111',8,7,3,1)}
+ if(a=='bow'){r('#ff4081',10,0,4,3)}
+ if(a=='crown'){r('#ffd600',4,-1,8,2);r('#ffd600',4,-2,2,1);r('#ffd600',7,-2,2,1);r('#ffd600',10,-2,2,1)}
+ g.restore();}
+function tx(s,x,y,c='#fff',al='left'){g.font=F;g.fillStyle=c;g.textAlign=al;g.fillText(s,x,y)}
+function wrap(s,w){const out=[];let l='';for(const wd of s.split(' ')){if((l+wd).length*8>w){out.push(l.trim());l=''}l+=wd+' '}out.push(l.trim());return out}
+function box(x,y,w,h){g.fillStyle='#fff';g.fillRect(x,y,w,h);g.fillStyle='#1a1a2e';g.fillRect(x+3,y+3,w-6,h-6)}
+function fmt(ms){const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function draw(){tick++;g.clearRect(0,0,320,240);
+ if(sc=='title'||sc=='board'||sc=='end'){g.fillStyle='#14143a';g.fillRect(0,0,320,240);
+  for(let i=0;i<30;i++){g.fillStyle=(i*7+tick/20|0)%5?'#334':'#ffd54f';g.fillRect((i*53)%320,(i*37)%100,2,2)}
+  tx('OFFICE',160,50,'#ffd54f','center');tx('QUEST',160,70,'#ffd54f','center');
+  tx('Organizational Behavior Adventure',160,92,'#9fc5e8','center');
+  AV.forEach((a,i)=>spr(60+i*52,110+(Math.sin(tick/10+i)*2|0),a.s,a.h,a.a,2));
+  ['PLAY','LEADERBOARD'].forEach((m,i)=>tx((mi==i?'▶ ':'  ')+m,100,185+i*18,mi==i?'#fff':'#889'));
+  tx('Use arrows + OK',160,228,'#667','center');return}
+ if(sc=='blocked'){g.fillStyle='#14143a';g.fillRect(0,0,320,240);tx('HOLD ON!',160,60,'#ffd54f','center');wrap(bm,280).forEach((l,i)=>tx(l,160,100+i*14,'#fff','center'));tx('Press OK',160,200,'#889','center');return}
+ if(sc=='avatar'){g.fillStyle='#14143a';g.fillRect(0,0,320,240);tx('CHOOSE YOUR AVATAR',160,30,'#ffd54f','center');
+  AV.forEach((a,i)=>{const x=24+i*72;if(i==ai){g.fillStyle='#ffd54f';g.fillRect(x-4,86,64,64)}g.fillStyle='#2b2b45';g.fillRect(x,90,56,56);spr(x+4,94,a.s,a.h,a.a,3)});
+  tx(AV[ai].n,160,185,'#fff','center');tx('◀  ▶  then OK',160,212,'#889','center');tx(isOwner?'TEACHER: UNLIMITED TRIES':'ATTEMPTS LEFT: '+Math.max(0,2-att),160,230,'#9fc5e8','center');return}
+ // room
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){g.fillStyle=(x+y)%2?rm.f:rm.f2;g.fillRect(x*T,y*T,T,T)}
+ g.fillStyle='#37474f';g.fillRect(0,0,320,T);g.fillRect(0,0,T,240);g.fillRect(304,0,T,240);
+ const open=!pend();g.fillStyle=open?'#43a047':'#c62828';g.fillRect(10*T,0,T,T);g.fillStyle='#fff';g.fillRect(10*T+3,3,10,T-3);
+ for(const d of rm.d){g.fillStyle='#8d5a2b';g.fillRect(d[0]*T,d[1]*T,d[2]*T,d[3]*T);g.fillStyle='#a8712f';g.fillRect(d[0]*T,d[1]*T,d[2]*T,4);
+  for(let i=0;i<d[2];i+=3){g.fillStyle='#222';g.fillRect(d[0]*T+i*T+4,d[1]*T+6,12,9);g.fillStyle='#6cf';g.fillRect(d[0]*T+i*T+5,d[1]*T+7,10,6)}}
+ for(const p of rm.p){const x=p[0]*T,y=p[1]*T,fc=['#ff4081','#ffeb3b','#ff7043'][(p[0]+p[1])%3];g.fillStyle='#2e7d32';g.fillRect(x+7,y+5,2,5);g.fillRect(x+4,y+6,3,2);g.fillRect(x+9,y+6,3,2);g.fillStyle=fc;g.fillRect(x+5,y+1,6,4);g.fillStyle='#fff';g.fillRect(x+7,y+2,2,2);g.fillStyle='#a1522b';g.fillRect(x+3,y+9,10,2);g.fillRect(x+4,y+11,8,4);g.fillStyle='#7a3a1a';g.fillRect(x+4,y+14,8,1)}
+ const av=AV[ai];
+ const L=[...rm.np.map(n=>({y:n.y,f:()=>{spr(n.x*T,n.y*T,n.c,n.h,n.ac);if(!n.done&&Math.floor(tick/20)%2)tx('!',n.x*T+8,n.y*T-2,'#ff0','center');if(n.done)tx('✓',n.x*T+8,n.y*T-2,'#6f6','center')}})),{y:py,f:()=>spr(px*T,py*T,av.s,av.h,av.a)}].sort((a,b)=>a.y-b.y);L.forEach(o=>o.f());
+ g.fillStyle='rgba(0,0,0,.6)';g.fillRect(16,16,288,12);tx(rm.n+'  '+(ri+1)+'/'+R.length,22,26,'#ffd54f');tx(fmt(Date.now()-t0),298,26,'#fff','right');
+ if(dlg){box(4,128,312,108);const n=dlg.n;
+  tx(n.nm,12,142,'#ffd54f');const ls=wrap(dlg.t,288);ls.forEach((l,i)=>tx(l,12,156+i*11));
+  if(dlg.m=='ask')n.ord.forEach((oi,i)=>{tx((dlg.c==i?'▶ ':'  ')+n.o[oi],12,196+i*13,dlg.c==i?'#fff':'#9aa')});
+  else if(Math.floor(tick/15)%2)tx('▼',302,228,'#fff','right')}}
+function startAsk(n){dlg={n,m:'ask',t:n.q,c:0}}
+function ntick(){if(sc!='play'||dlg)return;
+ for(const n of rm.np){if(n.done)continue;const dx=px-n.x,dy=py-n.y,d=Math.max(Math.abs(dx),Math.abs(dy));
+  if(d<=3)n.act=1;if(!n.act)continue;
+  if(Math.abs(dx)+Math.abs(dy)==1){startAsk(n);return}
+  const sx=Math.sign(dx),sy=Math.sign(dy),mv=Math.abs(dx)>=Math.abs(dy)?[[sx,0],[0,sy]]:[[0,sy],[sx,0]];
+  let ok=0;for(const[a,b]of mv){if((a||b)&&!blocked(n.x+a,n.y+b)&&!(n.x+a==px&&n.y+b==py)){n.x+=a;n.y+=b;ok=1;break}}
+  if(!ok&&Math.abs(dx)+Math.abs(dy)<=2){startAsk(n);return}
+  return}}
+function press(k){
+ if(sc=='title'){if(k=='u'||k=='d')mi=1-mi;if(k=='ok'){if(mi==0)sc='avatar';else showBoard()}return}
+ if(sc=='avatar'){if(k=='l')ai=(ai+3)%4;if(k=='r')ai=(ai+1)%4;if(k=='ok'){
+  if(!attReady){sc='blocked';bm='Checking your attempts... please try again in a moment.';return}
+  if(!isOwner&&att>=2){sc='blocked';bm='No attempts left! Each player can try only twice.';return}
+  if(!isOwner){att++;if(db&&uid)db.collection('attempts').doc(uid).set({n:att}).catch(()=>{})}
+  load(0);t0=Date.now();sc='play';dlg={n:{nm:'HINT'},m:'intro',t:'The race for attendance begins. Move forward. Complete the game to get your attendance!'}}return}
+ if(sc=='blocked'){if(k=='ok')sc='title';return}
+ if(sc=='board'){if(k=='ok')closeOv();return}
+ if(sc!='play')return;
+ if(dlg){const n=dlg.n;
+  if(dlg.m=='ask'){if(k=='u')dlg.c=(dlg.c+2)%3;if(k=='d')dlg.c=(dlg.c+1)%3;
+   if(k=='ok'){if(n.ord[dlg.c]==n.a)dlg={n,m:'right',t:'Correct! '+n.e}; else dlg={n,m:'wrong',t:'Hmm, not quite. Let me ask you again!'}}}
+  else if(k=='ok'){if(dlg.m=='wrong')startAsk(n);else if(dlg.m=='intro'){dlg=null;t0=Date.now()}else{n.done=1;dlg=null}}
+  return}
+ if(rm.np.some(n=>n.act&&!n.done))return;
+ let nx=px,ny=py;if(k=='u')ny--;if(k=='d')ny++;if(k=='l')nx--;if(k=='r')nx++;if(nx==px&&ny==py)return;
+ if(ny==0&&nx==10){if(pend()){dlg={n:{nm:'LOCKED DOOR'},m:'msg',t:'The door is locked. Talk to everyone in this room first!'};return}
+  if(ri<R.length-1)load(ri+1);else finish();return}
+ if(!blocked(nx,ny)){px=nx;py=ny}}
+function finish(){tEnd=Date.now()-t0;sc='end';
+ OV.style.display='block';OV.innerHTML=`<h2>YOU DID IT!</h2><p style="text-align:center">Your time: <b style="color:#ffd54f">${fmt(tEnd)}</b></p>
+ <label>GAME NAME<input id="gn" maxlength="14"></label><label>FORMAL NAME<input id="fn" maxlength="40"></label><label>ID NO<input id="id" maxlength="20"></label>
+ <button id="sv">SUBMIT</button><p id="msg" style="text-align:center;color:#ffd54f"></p>`;
+ document.getElementById('sv').onclick=save}
+async function save(){const gn=gn_.value.trim(),fn=fn_.value.trim(),id=id_.value.trim(),m=msg_;
+ if(!gn||!fn||!id){m.textContent='Fill in all fields!';return}
+ const key=id.replace(/[^A-Za-z0-9_-]/g,'_');
+ if(!db){m.textContent='Cannot reach the leaderboard. Please reopen the link.';return}
+ try{const ref=db.collection('scores').doc(key),s=await ref.get();
+  let best=tEnd;if(s.exists&&s.data().ms<tEnd)best=s.data().ms;
+  await ref.set({game:gn,name:fn,id,ms:best,at:Date.now()});
+  m.textContent='Saved! Attendance recorded.';setTimeout(showBoard,900)}catch(e){m.textContent='Save failed. Try again.'}}
+const gn_={get value(){return document.getElementById('gn').value}},fn_={get value(){return document.getElementById('fn').value}},id_={get value(){return document.getElementById('id').value}},msg_={set textContent(v){document.getElementById('msg').textContent=v}};
+function showBoard(){sc='board';OV.style.display='block';rend()}
+function closeOv(){OV.style.display='none';sc='title';mi=0}
+function rend(){if(sc!='board')return;const l=[...rows].sort((a,b)=>a.ms-b.ms);
+ OV.innerHTML=`<h2>ALL-TIME LEADERBOARD</h2>${isOwner?'<p style="color:#6f6;font-size:8px">Teacher view: completed IDs ('+l.length+')</p><div style="display:flex;gap:6px;margin:8px 0"><button id="dlb">DOWNLOAD CSV</button><button id="rsb" style="background:#c62828">'+(rc?'TAP AGAIN TO CONFIRM':'RESET LEADERBOARD')+'</button></div><p style="color:#ffd54f;font-size:8px">'+esc(note)+'</p>':''}<table><tr><th>#</th><th>GAME NAME</th>${isOwner?'<th>ID</th><th>NAME</th>':''}<th>TIME</th></tr>${l.slice(0,isOwner?200:15).map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.game)}</td>${isOwner?`<td>${esc(r.id)}</td><td>${esc(r.name)}</td>`:''}<td>${fmt(r.ms)}</td></tr>`).join('')||'<tr><td colspan=4>No finishers yet. Be the first!</td></tr>'}</table><p style="text-align:center;color:#889">Press OK to go back</p>`;
+ if(isOwner){document.getElementById('dlb').onclick=csv;document.getElementById('rsb').onclick=reset}}
+async function csv(){const l=[...rows].sort((a,b)=>a.ms-b.ms);const q=v=>{v=String(v??'');if(/^[=+\-@]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"'};
+ const out=['Rank,Game Name,ID,Formal Name,Time,Seconds,Submitted'].concat(l.map((r,i)=>[i+1,q(r.game),q(r.id),q(r.name),fmt(r.ms),Math.round(r.ms/1000),q(new Date(r.at).toISOString())].join(',')));
+ try{const d=await claude.use('downloads');if(!d){note='Download not available here.';return rend()}await d.save({filename:'attendance.csv',data:'\ufeff'+out.join('\n')});note='CSV saved.'}catch(e){note='Download was cancelled or failed.'}rend()}
+async function reset(){if(!rc){rc=1;rend();setTimeout(()=>{rc=0;rend()},4000);return}
+ rc=0;note='Resetting...';rend();
+ try{for(const r of rows)await db.collection('scores').doc(r._id).delete();
+  const a=await db.collection('attempts').get();for(const d of a.docs)await db.collection('attempts').doc(d.id).delete();
+  att=0;note='Leaderboard and attempts have been reset.'}catch(e){note='Reset failed. Try again.'}rend()}
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+document.querySelectorAll('[data-k]').forEach(b=>{let iv;const k=b.dataset.k;
+ b.addEventListener('pointerdown',e=>{e.preventDefault();press(k);if(k!='ok')iv=setInterval(()=>press(k),150)});
+ ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>clearInterval(iv)))});
+addEventListener('keydown',e=>{if(e.target.tagName=='INPUT')return;const m={ArrowUp:'u',ArrowDown:'d',ArrowLeft:'l',ArrowRight:'r',Enter:'ok',' ':'ok'}[e.key];if(m){e.preventDefault();press(m)}});
+setInterval(ntick,160);(function loop(){draw();requestAnimationFrame(loop)})();
+(async()=>{try{const u=await claude.use('user');isOwner=u?await u.isOwner():false;
+ db=await claude.use('db');uid=u?await u.id():null;
+ if(db){db.collection('scores').onSnapshot(s=>{rows=s.docs.map(d=>({...d.data(),_id:d.id}));rend()},()=>{});
+  if(uid){try{const s=await db.collection('attempts').doc(uid).get();att=s.exists?(s.data().n||0):0}catch(e){}}}}catch(e){}
+ attReady=true})();
+</script></body></html>
